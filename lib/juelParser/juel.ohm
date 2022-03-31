@@ -1,0 +1,311 @@
+JUEL {
+    CompositeExpression
+        = (
+              DeferredExpression
+            | DynamicExpression
+            | LiteralExpression
+        )* end
+
+    LiteralExpression
+        = literalExpression
+        | "$"
+        | "#"
+
+    literalExpression
+        = literalExpressionLetter+
+
+	literalExpressionLetter
+    	= ~("\\" | "$" | "#") any	-- normal
+        | "\\" ("\\" | "$" | "#")	-- escaped
+        | "$" ~("{" "$")			-- dollar
+        | "#" ~("{" "#")			-- sharp
+
+    DeferredExpression
+        = startDeferredExpression Expression rCurl
+
+    startDeferredExpression
+        = "#{"
+
+    DynamicExpression
+        = startDynamicExpression Expression rCurl
+
+    startDynamicExpression
+        = "${"
+
+    rCurl
+        = "}"
+
+    Expression
+        = SemiColon
+
+    SemiColon
+        = Assignment (semiColon Assignment)*
+
+    semiColon
+        = ";"
+
+    Assignment
+        = LambdaExpression              -- lambda
+        | Choice (assign Assignment)?   -- choice
+
+    assign
+        = "="
+
+    LambdaExpression
+        = LambdaParameters arrow (LambdaExpression | Choice)
+
+    arrow
+        = "->"
+
+    LambdaParameters
+        = lParen (Identifier (comma Identifier)*)? rParen
+
+    lParen
+        = "("
+
+    comma
+        = ","
+
+    rParen
+        = ")"
+
+    Choice
+        = Or (questionMark Choice colon Choice)?
+
+    questionMark
+        = "?"
+
+    colon
+        = ":"
+
+    Or
+        = And (or And)*
+
+    or
+        = "||"
+        | "or"
+
+    And
+        = Equality (and Equality)*
+
+    and
+        = "&&"
+        | "and"
+
+    Equality
+        = Compare (
+              eq Compare
+            | ne Compare
+        )*
+
+    eq
+        = "=="
+        | "eq"
+
+    ne
+        = "!="
+        | "ne"
+
+    Compare
+        = Concatenation (
+              lt Concatenation
+            | gt Concatenation
+            | le Concatenation
+            | ge Concatenation
+        )*
+
+    lt
+        = "<"
+        | "lt"
+
+    gt
+        = ">"
+        | "gt"
+
+    le
+        = "<="
+        | "le"
+
+    ge
+        = ">="
+        | "ge"
+
+    Concatenation
+        = Math (concat Math)*
+
+    concat
+        = "+="
+
+    Math
+        = Multiplication (
+              plus Multiplication
+            | minus Multiplication
+        )*
+
+    plus
+        = "+"
+
+    minus
+        = "-"
+
+    Multiplication
+        = Unary (
+              mult Unary
+            | div Unary
+            | mod Unary
+        )*
+
+    mult
+        = "*"
+
+    div
+        = "/"
+        | "div"
+
+    mod
+        = "%"
+        | "mod"
+
+    Unary
+        = minus Unary -- minus
+        | not Unary -- not
+        | empty Unary -- empty
+        | Value
+
+    not
+        = "!"
+        | "not"
+
+    empty
+        = "empty"
+
+    Value
+        = ValuePrefix ValueSuffix*
+
+    ValuePrefix
+        = Literal
+        | NonLiteral
+
+    ValueSuffix
+        = DotSuffix
+        | BracketSuffix
+
+    DotSuffix
+        = dot Identifier MethodArguments?
+
+    dot
+        = "."
+
+    Identifier
+        = (idletter | implObjStart) (idletter | iddigit)*
+
+    idletter
+        = "\u{0024}"
+        | "\u{0041}".."\u{005a}"
+        | "\u{005f}"
+        | "\u{0061}".."\u{007a}"
+        | "\u{00c0}".."\u{00d6}"
+        | "\u{00d8}".."\u{00f6}"
+        | "\u{00f8}".."\u{00ff}"
+        | "\u{0100}".."\u{1fff}"
+        | "\u{3040}".."\u{318f}"
+        | "\u{3300}".."\u{337f}"
+        | "\u{3400}".."\u{3d2d}"
+        | "\u{4e00}".."\u{9fff}"
+        | "\u{f900}".."\u{faff}"
+
+    iddigit
+        = "\u{0030}".."\u{0039}"
+        | "\u{0660}".."\u{0669}"
+        | "\u{06f0}".."\u{06f9}"
+        | "\u{0966}".."\u{096f}"
+        | "\u{09e6}".."\u{09ef}"
+        | "\u{0a66}".."\u{0a6f}"
+        | "\u{0ae6}".."\u{0aef}"
+        | "\u{0b66}".."\u{0b6f}"
+        | "\u{0be7}".."\u{0bef}"
+        | "\u{0c66}".."\u{0c6f}"
+        | "\u{0ce6}".."\u{0cef}"
+        | "\u{0d66}".."\u{0d6f}"
+        | "\u{0e50}".."\u{0e59}"
+        | "\u{0ed0}".."\u{0ed9}"
+        | "\u{1040}".."\u{1049}"
+
+    implObjStart
+        = "#"
+
+    BracketSuffix
+        = lBrack Expression rBrack MethodArguments?
+
+    lBrack
+        = "["
+
+    rBrack
+        = "]"
+
+    MethodArguments
+        = lParen (Expression (comma Expression)*)? rParen
+
+    LambdaExpressionOrCall
+        = lParen LambdaParameters arrow (LambdaExpression | Choice) rParen MethodArguments*
+
+    NonLiteral
+        = LambdaExpressionOrCall
+        | lParen Expression rParen -- paren
+        | Function
+        | Identifier
+        | MapData
+        | ListData
+
+    MapData
+        = startMap (MapEntry (comma MapEntry)*)? rCurl
+
+    startMap
+        = "{"
+
+    MapEntry
+        = Expression (colon Expression)?
+
+    ListData
+        = lBrack (Expression (comma Expression)*)? rBrack
+
+    Function
+        = Identifier (colon Identifier)? MethodArguments+
+
+    Literal
+        = Boolean
+        | FloatingPoint
+        | Integer
+        | String
+        | Null
+
+    Boolean
+        = "true"
+        | "false"
+
+    FloatingPoint
+        = digit+ "." digit* exponent?   -- normal
+        | "." digit+ exponent?          -- nointeger
+        | digit+ exponent               -- nofraction
+
+    exponent
+        = ("e" | "E") ("+" | "-")? digit+
+
+    Integer
+        = digit+
+
+    String
+        = "\"" doubleQuoted* "\""
+        | "'" singleQuoted* "'"
+
+    doubleQuoted
+        = ~("\"" | "\\") any    -- normal
+        | "\\" ("\\" | "\"")    -- escaped
+
+    singleQuoted
+        = ~("'" | "\\") any     -- normal
+        | "\\" ("\\" | "'")     -- escaped
+
+    Null
+        = "null"
+}
